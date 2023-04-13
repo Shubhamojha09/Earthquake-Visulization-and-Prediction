@@ -1,0 +1,329 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+Categorical Variables Exploratory Analysis
+
+```{r}
+# Loading Packages
+library(ggplot2) # Data visualization
+library(lubridate)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+# Reading Dataset.
+eq<-read.csv("C:/Users/HP/Desktop/padhai/DV/JCOMP/datasets/dataset1.csv",stringsAsFactors = FALSE)
+
+eq$Date<-as.Date(eq$Date,format="%m/%d/%Y")
+
+eq$Year <-format(eq$Date,"%Y")
+
+eq$Month<-format(eq$Date,"%m")
+```
+
+
+```{r}
+## To see the number of observations for different causes of Earthquake
+
+ggplot(eq,aes(x=Type))+geom_bar(fill="blue")+xlab("Causes of Earthquake")+ylab("number of earthquakes")
+```
+
+
+```{r}
+##Number of observations wrt Magnitude
+
+ggplot(eq,aes(x=Magnitude))+geom_vline(aes(xintercept=mean(Magnitude),color="#DA3B01", linetype="dashed"))+geom_histogram(fill="#0078D7",colour="Black")
+```
+
+
+```{r}
+##Trend in number of earthquakes year - wise
+##This clearly shows a decrease in number of earthquakes each year since 2012
+
+eq_Year<-eq%>%filter(Year!="NA")%>%group_by(Year)%>%
+  summarise(Count=n(),meanMagnitude=mean(Magnitude),minMagnitude=min(Magnitude),maxMagnitude=max(Magnitude),medianMagnitude=median(Magnitude))
+
+ggplot(eq_Year,aes(x=Year,y=Count,group=1))+geom_line(colour="#1ABC9C")+geom_point(size=2,shape=1,fill="white")+
+  theme(axis.text.x = element_text(angle=90,hjust=1,colour="#2F2F2F"))
+```
+
+
+```{r}
+##Trend in number of earthquakes Month- wise
+##Even though December has just Above Avg number of earthquakes but there is an earthquake with very High Magnitude 
+
+eq_Month<-eq%>%filter(Year!="NA")%>%group_by(Month)%>%
+  summarise(Count=n(),meanMagnitude=mean(Magnitude),minMagnitude=min(Magnitude),maxMagnitude=max(Magnitude),medianMagnitude=median(Magnitude))
+
+ggplot(eq_Month,aes(x=Month,y=Count,group=1))+geom_line(colour="#28B463")+geom_point(size=2,shape=1,fill="#28B463")+
+  theme(axis.text.x = element_text(angle=90,hjust=1,colour="#2F2F2F"))+
+  geom_hline(aes(yintercept=mean(Count),color="#DA3B01", linetype="dashed"))+
+  xlab("Months")+
+  ylab("Number of earthquakes")
+```
+
+
+```{r}
+ggplot(eq_Month,aes(x=Month,y=maxMagnitude,group=1))+geom_line(colour="#E67E22")+geom_point(size=2,shape=1,fill="#E67E22")+
+  theme(axis.text.x = element_text(angle=90,hjust=1,colour="#2F2F2F"))+
+  xlab("Months")+
+  ylab("Maximmum Magnitude for each Month")
+```
+
+
+```{r}
+## There are only 3 instances when an Explosion has caused Earthquake
+## There is only 1 instance where Rockburst has caused Earthquake
+
+eq1<-eq%>%filter(Year!="NA")%>%group_by(Year,Type)%>%
+  summarise(Count=n(),meanMagnitude=mean(Magnitude),minMagnitude=min(Magnitude),maxMagnitude=max(Magnitude),medianMagnitude=median(Magnitude))
+
+eq_Type_Year<-gather(eq1,Summary,Value,c(-1,-2))%>%filter(Summary!="Count")
+
+ggplot(eq_Type_Year,aes(x=Year,y=Value,group=Summary,col=Summary))+geom_line()+geom_point(size=2,fill="white")+
+  theme(axis.text.x = element_text(angle=90,hjust=1,colour="#4B0082"))+ylim(5.5,10)+
+  facet_wrap(~Type)
+```
+
+
+```{r}
+## Analysis on Earthquakes caused by "Nuclear Explosion"
+
+eq_nuclear<-eq%>%filter(Type=="Nuclear Explosion")
+
+eq_nuclear_1<-eq_nuclear%>%group_by(Year)%>%
+  summarise(countof=n(),minMagnitude=min(Magnitude),maxMagnitude=max(Magnitude),meanMagnitude=mean(Magnitude))
+
+
+ggplot(eq_nuclear_1,aes(x=Year,y=countof,group=1))+geom_line()+geom_point()+
+  theme(axis.text.x = element_text(angle=90,hjust=0,colour = "Green"))+
+  xlab("Year")+
+  ylab("Mean Magnitude of Earthquake")
+```
+
+
+```{r}
+## number of occurrences based on Magnitude Type  
+eq_MagnitudeType<-eq%>%group_by(Year,Magnitude.Type)%>%summarise(Count=n(),meanMagnitude=mean(Magnitude))
+
+ggplot(eq_MagnitudeType,aes(x=Year,y=Count,col=Magnitude.Type,group=Magnitude.Type))+
+  geom_point()+geom_line()+
+  theme(axis.text.x = element_text(angle=90,hjust=1))+
+  xlab("Years")+
+  ylab("Number of Observations")
+```
+
+
+```{r}
+## Depth vs Magnitude
+## There are few cases in which even though depth was not high yet the Magnitude of Earthquake is too high
+ggplot(eq,aes(x=Magnitude,y=Depth))+geom_point(col="#adbce6")+
+  xlab("Magnitude of Earthquake")+
+  ylab("Depth")
+
+```
+
+Visualizing Data on Maps
+
+```{r}
+# Loading Packages
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(ggmap))
+suppressPackageStartupMessages(library(ggsn))
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(lubridate))
+suppressPackageStartupMessages(library(sf))
+suppressPackageStartupMessages(library(spData))
+suppressPackageStartupMessages(library(tmap))
+suppressPackageStartupMessages(library(leaflet))
+suppressPackageStartupMessages(library(mapview))
+suppressPackageStartupMessages(library(animation))
+suppressPackageStartupMessages(library(gganimate))
+suppressPackageStartupMessages(library(ggthemes))
+suppressPackageStartupMessages(library(gifski))
+suppressPackageStartupMessages(library(av))
+packages <- c("ggplot2", "ggmap", "ggsn", "dplyr", "lubridate", "sf", "spData", "tmap", "leaflet", "mapview", "animation", "gganimate", "ggthemes", "gifski", "av")
+version <- lapply(packages, packageVersion)
+version_c <- do.call(c, version)
+data.frame(packages=packages, version = as.character(version_c))
+R.version
+
+```
+
+
+```{r}
+# Reading Dataset.
+quakes <- read.csv("C:/Users/HP/Desktop/padhai/DV/JCOMP/datasets/all_month.csv", header=TRUE, sep=',', stringsAsFactors = FALSE)
+
+quakes$time <- ymd_hms(quakes$time)
+quakes$updated <- ymd_hms(quakes$updated)
+
+quakes$magType <- as.factor(quakes$magType)
+quakes$net <- as.factor(quakes$net)
+quakes$type <- as.factor(quakes$type)
+quakes$status <- as.factor(quakes$status)
+quakes$locationSource <- as.factor(quakes$locationSource)
+quakes$magSource <- as.factor(quakes$magSource)
+quakes <- arrange(quakes, -row_number())
+
+# earthquakes dataset
+earthquakes <- quakes %>% filter(type == "earthquake")
+```
+
+
+```{r}
+# Taking advantage of the ggplot2 package, we create a static map of the 
+# earthquake events.
+#1
+world <- map_data('world')
+#2
+title <- paste("Earthquakes map from ", paste(as.Date(earthquakes$time[1]), as.Date(earthquakes$time[nrow(earthquakes)]), sep = " to "))
+#3
+p <- ggplot() + geom_map(data = world, map = world, aes(x = long, y=lat, group=group, map_id=region), fill="white", colour="#7f7f7f", size=0.5)
+#4
+p <- p + geom_point(data = earthquakes, aes(x=longitude, y = latitude, colour = mag)) + scale_colour_gradient(low = "#00AA00",high = "#FF00AA") 
+#5
+p <- p + ggtitle(title) 
+#6
+p <- p + ggsn::north(data = earthquakes, location = "bottomright", anchor = c("x"=200, "y"=-80), symbol = 15)
+#7
+p <- p + ggsn::scalebar(data=earthquakes, location = "bottomleft", dist = 2500, dist_unit = "km", transform = TRUE, model = "WGS84")
+p
+```
+
+
+```{r}
+# We take advantage of the tmap package. For the purpose, we instantiate a Simple Features object by taking advantage of the sf package. The Simple Features is an open standard developed and endorsed by the Open Geospatial Consortium (OGC), a not-for-profit organization. Simple Features is a hierarchical data model that represents a wide range of geometry types.
+#1
+projcrs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+#2
+title <- paste("Earthquakes map from ", paste(as.Date(earthquakes$time[1]), as.Date(earthquakes$time[nrow(earthquakes)]), sep = " to "))
+#3
+df <- st_as_sf(x = earthquakes, coords = c("longitude", "latitude"), crs = projcrs)
+#4
+p <- tm_shape(spData::world) 
+#5
+p <- p + tm_style("classic") + tm_fill(col = "white")  + tm_borders() 
+#6  
+p <- p + tm_layout(main.title = title) 
+#7
+p <- p + tm_compass(type = "8star", position = c("right", "bottom")) 
+#8
+p <- p + tm_scale_bar(breaks = c(0, 2500, 5000), size = 1, position = c("left", "bottom")) 
+#9
+p <- p + tm_shape(df) 
+#10
+p <- p + tm_dots(size = 0.1, col = "mag", palette = "YlOrRd")
+p
+```
+
+
+```{r}
+# Visualizing only California Map - 1.
+#1
+california_data <- earthquakes %>% filter(longitude >= -125 & longitude <= -114 & latitude <= 42.5 & latitude >= 32.5)
+#2
+map_california <- us_states %>% filter(NAME == "California")
+#3
+df <- st_as_sf(x = california_data, coords = c("longitude", "latitude"), crs = st_crs(map_california))
+#4
+p <- tm_shape(map_california) 
+#5
+p <- p + tm_style("classic") + tm_fill(col = "palegreen4") + tm_borders() 
+#6  
+p <- p + tm_layout(main.title = paste("California earthquakes map from ", paste(as.Date(california_data$time[1]), as.Date(california_data$time[nrow(california_data)]), sep = " to "))) 
+#7
+p <- p + tm_compass(type = "8star", position = c("right", "top")) 
+#8
+p <- p + tm_scale_bar(breaks = c(0, 100, 200), size = 1, position = c("left", "bottom")) 
+#9
+p <- p + tm_shape(df) 
+#10
+p <- p + tm_dots(size = 0.1, col = "mag", palette = "YlOrRd")
+p
+```
+
+
+```{r}
+# Visualizing only California Map - 2.
+#1
+df <- st_as_sf(x = earthquakes, coords = c("longitude", "latitude"), crs = st_crs(map_california))
+
+#2
+df_map_inner_join <- st_join(df, map_california, left=FALSE)
+## although coordinates are longitude/latitude, st_intersects assumes that they are planar
+
+#3
+p <- tm_shape(map_california)
+#4
+p <- p + tm_style("classic") + tm_fill(col = "palegreen4") + tm_borders() 
+#5
+p <- p + tm_layout(main.title = paste("California earthquakes map from ", paste(as.Date(california_data$time[1]), as.Date(california_data$time[nrow(california_data)]), sep = " to "))) 
+#6
+p <- p + tm_compass(type = "8star", position = c("right", "top")) 
+#7
+p <- p + tm_scale_bar(breaks = c(0, 100, 200), size = 1, position = c("left", "bottom"))
+#8
+p <- p + tm_shape(df_map_inner_join) 
+#9
+p <- p + tm_dots(size = 0.1, col = "mag", palette = "YlOrRd")
+p
+```
+
+
+```{r}
+# We show a static map as obtained by taking advantage of the qmplot() function within the ggmap package.
+
+title <- paste("Earthquakes map from ", paste(as.Date(earthquakes$time[1]), as.Date(earthquakes$time[nrow(earthquakes)]), sep = " to "))
+magnitude <- factor(round(earthquakes$mag))
+qmplot(x = longitude, y = latitude, data = earthquakes, geom = "point", colour = magnitude, source = "stamen", zoom = 3) + scale_color_brewer(palette = 8) + ggtitle(title)
+```
+
+
+```{r}
+# Interactive Maps
+#Leaflet package
+earthquakes %>% leaflet() %>% addTiles() %>% 
+  addMarkers(~longitude, ~latitude,
+             popup = (paste("Place: ", earthquakes$place, "<br>", 
+                            "Id: ", earthquakes$id, "<br>",
+                            "Time: ", earthquakes$time, "<br>",
+                            "Magnitude: ", earthquakes$mag, " m <br>",
+                            "Depth: ", earthquakes$depth)),
+             clusterOptions = markerClusterOptions())
+```
+
+
+```{r}
+# tmap package
+#1
+projcrs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
+#2
+title <- paste("Earthquakes map from ", paste(as.Date(earthquakes$time[1]), as.Date(earthquakes$time[nrow(earthquakes)]), sep = " to "))
+#3
+df <- st_as_sf(x = earthquakes, coords = c("longitude", "latitude"), crs = projcrs)
+#4
+tmap_mode("view")
+## tmap mode set to interactive viewing
+
+#5
+p <- tm_shape(spData::world) 
+#6
+p <- p + tm_style("classic") + tm_fill(col = "white")  + tm_borders() 
+#7
+p <- p + tm_layout(main.title = title) 
+#8 compass is not supported in view mode
+#p <- p + tm_compass(type = "8star", position = c("right", "bottom")) 
+#9
+p <- p + tm_scale_bar(breaks = c(0, 2500, 5000), size = 1, position = c("left", "bottom")) 
+#10
+p <- p + tm_shape(df) 
+#11
+p <- p + tm_dots(size = 0.01, col = "mag", palette = "YlOrRd")
+p
+```
